@@ -18,6 +18,8 @@ open class DrawableGroundAtmosphere : Drawable {
     var atmosphereAltitude = 0.0
     var program: GroundProgram? = null
     var nightTexture: Texture? = null
+    /** Bruneton precomputed optical-depth LUT; bound to GL_TEXTURE1 during rendering */
+    var transmittanceLUT: Texture? = null
     protected val mvpMatrix = Matrix4()
     protected val texCoordMatrix = Matrix3()
     protected val fullSphereSector = Sector().setFullSphere()
@@ -37,6 +39,7 @@ open class DrawableGroundAtmosphere : Drawable {
     override fun recycle() {
         program = null
         nightTexture = null
+        transmittanceLUT = null
         pool?.release(this)
         pool = null
     }
@@ -56,6 +59,10 @@ open class DrawableGroundAtmosphere : Drawable {
 
         // Set up to use the shared tile tex coord attributes.
         dc.gl.enableVertexAttribArray(1)
+
+        // Bind the Bruneton transmittance LUT to texture unit 1.
+        dc.activeTextureUnit(GL_TEXTURE1)
+        if (transmittanceLUT?.bindTexture(dc) != true) dc.defaultTexture.bindTexture(dc)
 
         // Attempt to bind the night side texture to multi-texture unit 0.
         dc.activeTextureUnit(GL_TEXTURE0)

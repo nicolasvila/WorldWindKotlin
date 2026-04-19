@@ -1,6 +1,7 @@
 package earth.worldwind.util.kgl
 
 import android.opengl.GLES20
+import android.opengl.GLES30
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -230,4 +231,24 @@ class AndroidKgl : Kgl {
     ) = GLES20.glReadPixels(x, y, width, height, format, type, ByteBuffer.wrap(buffer))
 
     override fun pixelStorei(pname: Int, param: Int) = GLES20.glPixelStorei(pname, param)
+
+    // OpenGL ES 3.0 methods for Bruneton precomputed atmosphere
+    override fun texImage2DFloat(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: FloatArray?
+    ) = GLES30.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let { FloatBuffer.wrap(it) })
+
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int, border: Int, format: Int, type: Int
+    ) = GLES30.glTexImage3D(target, level, internalFormat, width, height, depth, border, format, type, null)
+
+    override fun framebufferTextureLayer(target: Int, attachment: Int, texture: KglTexture, level: Int, layer: Int) =
+        GLES30.glFramebufferTextureLayer(target, attachment, texture.id, level, layer)
+
+    override fun drawBuffers(count: Int, buffers: IntArray) = GLES30.glDrawBuffers(count, buffers, 0)
+
+    override fun blendFuncSeparate(srcRGB: Int, dstRGB: Int, srcAlpha: Int, dstAlpha: Int) =
+        GLES30.glBlendFuncSeparate(srcRGB, dstRGB, srcAlpha, dstAlpha)
+
+    override fun blendEquationSeparate(modeRGB: Int, modeAlpha: Int) =
+        GLES30.glBlendEquationSeparate(modeRGB, modeAlpha)
 }

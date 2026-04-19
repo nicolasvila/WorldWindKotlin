@@ -232,5 +232,25 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     ) = gl.glReadPixels(x, y, width, height, format, type, ByteBuffer.wrap(buffer))
 
     override fun pixelStorei(pname: Int, param: Int) = gl.glPixelStorei(pname, param)
+
+    // GL3ES3 methods for Bruneton precomputed atmosphere
+    override fun texImage2DFloat(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: FloatArray?
+    ) = gl.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let { FloatBuffer.wrap(it) })
+
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int, border: Int, format: Int, type: Int
+    ) = gl.glTexImage3D(target, level, internalFormat, width, height, depth, border, format, type, null as java.nio.Buffer?)
+
+    override fun framebufferTextureLayer(target: Int, attachment: Int, texture: KglTexture, level: Int, layer: Int) =
+        gl.glFramebufferTextureLayer(target, attachment, texture.id, level, layer)
+
+    override fun drawBuffers(count: Int, buffers: IntArray) = gl.glDrawBuffers(count, buffers, 0)
+
+    override fun blendFuncSeparate(srcRGB: Int, dstRGB: Int, srcAlpha: Int, dstAlpha: Int) =
+        gl.glBlendFuncSeparate(srcRGB, dstRGB, srcAlpha, dstAlpha)
+
+    override fun blendEquationSeparate(modeRGB: Int, modeAlpha: Int) =
+        gl.glBlendEquationSeparate(modeRGB, modeAlpha)
 }
 

@@ -11,20 +11,24 @@ class SkyProgram : AbstractAtmosphereProgram() {
             uniform mat3 texCoordMatrix;
             uniform vec3 vertexOrigin;
             uniform vec3 eyePoint;
-            uniform float eyeMagnitude;	        /* The eye point's magnitude */
-            uniform float eyeMagnitude2;	    /* eyeMagnitude^2 */
+            uniform float eyeMagnitude;         /* The eye point's magnitude */
+            uniform float eyeMagnitude2;            /* eyeMagnitude^2 */
             uniform vec3 lightDirection;        /* The direction vector to the light source */
-            uniform vec3 invWavelength;	        /* 1 / pow(wavelength, 4) for the red, green, and blue channels */
+            uniform vec3 invWavelength;         /* 1 / pow(wavelength, 4) for the red, green, and blue channels */
             uniform float atmosphereRadius;     /* The outer (atmosphere) radius */
             uniform float atmosphereRadius2;    /* atmosphereRadius^2 */
-            uniform float globeRadius;		    /* The inner (planetary) radius */
-            uniform float KrESun;			    /* Kr * ESun */
-            uniform float KmESun;			    /* Km * ESun */
-            uniform float Kr4PI;			    /* Kr * 4 * PI */
-            uniform float Km4PI;			    /* Km * 4 * PI */
-            uniform float scale;			    /* 1 / (atmosphereRadius - globeRadius) */
-            uniform float scaleDepth;		    /* The scale depth (i.e. the altitude at which the atmosphere's average density is found) */
-            uniform float scaleOverScaleDepth;	/* fScale / fScaleDepth */
+            uniform float globeRadius;              /* The inner (planetary) radius */
+            uniform float KrESun;                           /* Kr * ESun */
+            uniform float KmESun;                           /* Km * ESun */
+            uniform float Kr4PI;                            /* Kr * 4 * PI */
+            uniform float Km4PI;                            /* Km * 4 * PI */
+            uniform float scale;                            /* 1 / (atmosphereRadius - globeRadius) */
+            uniform float scaleDepth;               /* The scale depth (i.e. the altitude at which the atmosphere's average density is found) */
+            uniform float scaleOverScaleDepth;  /* fScale / fScaleDepth */
+
+            /* Bruneton transmittance LUT: R channel = tau/8.0
+               UV = ((mu+1)/2, (r-globeRadius)/(atmosphereRadius-globeRadius)) */
+            uniform sampler2D transmittanceSampler;
 
             attribute vec4 vertexPoint;
             attribute vec2 vertexTexCoord;
@@ -34,9 +38,14 @@ class SkyProgram : AbstractAtmosphereProgram() {
             varying vec3 direction;
             varying vec2 texCoord;
 
-            float scaleFunc(float cos) {
-                float x = 1.0 - cos;
-                return scaleDepth * exp(-0.00287 + x*(0.459 + x*(3.83 + x*(-6.80 + x*5.25))));
+            /* Look up numerically-accurate optical depth from the precomputed LUT.
+               Replaces the O'Neil scaleFunc polynomial which diverges for near-horizontal rays.
+               Critical fix: prevents white horizon explosion when cameraAngle goes negative
+               for tangential rays from low orbit. */
+            float scaleFuncLUT(float r, float mu) {
+                float u = clamp((mu + 1.0) * 0.5, 0.0, 1.0);
+                float v = clamp((r - globeRadius) / (atmosphereRadius - globeRadius), 0.0, 1.0);
+                return texture2D(transmittanceSampler, vec2(u, v)).r * 8.0;
             }
 
             void main() {
@@ -56,7 +65,7 @@ class SkyProgram : AbstractAtmosphereProgram() {
                     float height = length(start);
                     float depth = exp(scaleOverScaleDepth * (globeRadius - eyeMagnitude));
                     float startAngle = dot(ray, start) / height;
-                    startOffset = depth*scaleFunc(startAngle);
+                    startOffset = depth * scaleFuncLUT(height, startAngle);
                 } else {
                     /* Calculate the closest intersection of the ray with the outer atmosphere (which is the near point of the ray
                     passing through the atmosphere) */
@@ -70,7 +79,7 @@ class SkyProgram : AbstractAtmosphereProgram() {
                     far -= near;
                     float startAngle = dot(ray, start) / atmosphereRadius;
                     float startDepth = exp(-1.0 / scaleDepth);
-                    startOffset = startDepth*scaleFunc(startAngle);
+                    startOffset = startDepth * scaleFuncLUT(atmosphereRadius, startAngle);
                 }
 
                 /* Initialize the scattering loop variables */
@@ -87,7 +96,10 @@ class SkyProgram : AbstractAtmosphereProgram() {
                     float depth = exp(scaleOverScaleDepth * (globeRadius - height));
                     float lightAngle = dot(lightDirection, samplePoint) / height;
                     float cameraAngle = dot(ray, samplePoint) / height;
-                    float scatter = (startOffset + depth*(scaleFunc(lightAngle) - scaleFunc(cameraAngle)));
+                    /* Use LUT for both angles: lightAngle for terminator, cameraAngle for sky.
+                       The LUT is bounded for all angles, preventing the white-horizon explosion
+                       caused by scaleFunc diverging when cameraAngle goes negative (far side limb). */
+                    float scatter = (startOffset + depth*(scaleFuncLUT(height, lightAngle) - scaleFuncLUT(height, cameraAngle)));
                     vec3 attenuate = exp(-scatter * (invWavelength * Kr4PI + Km4PI));
                     frontColor += attenuate * (depth * scaledLength);
                     samplePoint += sampleRay;

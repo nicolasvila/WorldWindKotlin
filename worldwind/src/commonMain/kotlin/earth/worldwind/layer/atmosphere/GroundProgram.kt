@@ -19,20 +19,24 @@ class GroundProgram: AbstractAtmosphereProgram() {
             uniform mat3 texCoordMatrix;
             uniform vec3 vertexOrigin;
             uniform vec3 eyePoint;
-            uniform float eyeMagnitude;	        /* The eye point's magnitude */
-            uniform float eyeMagnitude2;	    /* eyeMagnitude^2 */
-            uniform vec3 lightDirection;	    /* The direction vector to the light source */
-            uniform vec3 invWavelength;	        /* 1 / pow(wavelength, 4) for the red, green, and blue channels */
+            uniform float eyeMagnitude;         /* The eye point's magnitude */
+            uniform float eyeMagnitude2;            /* eyeMagnitude^2 */
+            uniform vec3 lightDirection;            /* The direction vector to the light source */
+            uniform vec3 invWavelength;         /* 1 / pow(wavelength, 4) for the red, green, and blue channels */
             uniform float atmosphereRadius;     /* The outer (atmosphere) radius */
             uniform float atmosphereRadius2;    /* atmosphereRadius^2 */
-            uniform float globeRadius;		    /* The inner (planetary) radius */
-            uniform float KrESun;			    /* Kr * ESun */
-            uniform float KmESun;			    /* Km * ESun */
-            uniform float Kr4PI;			    /* Kr * 4 * PI */
-            uniform float Km4PI;			    /* Km * 4 * PI */
-            uniform float scale;			    /* 1 / (atmosphereRadius - globeRadius) */
-            uniform float scaleDepth;		    /* The scale depth (i.e. the altitude at which the atmosphere's average density is found) */
-            uniform float scaleOverScaleDepth;	/* fScale / fScaleDepth */
+            uniform float globeRadius;              /* The inner (planetary) radius */
+            uniform float KrESun;                           /* Kr * ESun */
+            uniform float KmESun;                           /* Km * ESun */
+            uniform float Kr4PI;                            /* Kr * 4 * PI */
+            uniform float Km4PI;                            /* Km * 4 * PI */
+            uniform float scale;                            /* 1 / (atmosphereRadius - globeRadius) */
+            uniform float scaleDepth;               /* The scale depth (i.e. the altitude at which the atmosphere's average density is found) */
+            uniform float scaleOverScaleDepth;  /* fScale / fScaleDepth */
+
+            /* Bruneton transmittance LUT: R channel = tau/8.0
+               UV = ((mu+1)/2, (r-globeRadius)/(atmosphereRadius-globeRadius)) */
+            uniform sampler2D transmittanceSampler;
 
             attribute vec4 vertexPoint;
             attribute vec2 vertexTexCoord;
@@ -42,9 +46,13 @@ class GroundProgram: AbstractAtmosphereProgram() {
             varying vec3 direction;
             varying vec2 texCoord;
 
-            float scaleFunc(float cos) {
-                float x = 1.0 - cos;
-                return scaleDepth * exp(-0.00287 + x*(0.459 + x*(3.83 + x*(-6.80 + x*5.25))));
+            /* Look up numerically-accurate optical depth from the precomputed LUT.
+               Replaces the O'Neil scaleFunc polynomial which diverges near mu=0.
+               Returns the same quantity (normalized optical depth toward direction mu from altitude r). */
+            float scaleFuncLUT(float r, float mu) {
+                float u = clamp((mu + 1.0) * 0.5, 0.0, 1.0);
+                float v = clamp((r - globeRadius) / (atmosphereRadius - globeRadius), 0.0, 1.0);
+                return texture2D(transmittanceSampler, vec2(u, v)).r * 8.0;
             }
 
             void main() {
@@ -72,15 +80,14 @@ class GroundProgram: AbstractAtmosphereProgram() {
                 }
 
                 float depth = exp((globeRadius - atmosphereRadius) / scaleDepth);
-                float eyeAngle = dot(-ray, point) / length(point);
-                float lightAngle = dot(lightDirection, point) / length(point);
-                /* Cap eyeScale to 2*scaleDepth to prevent extreme atmospheric thickness
-                   for near-horizontal rays from ground level (foggy/dark mountains at horizon).
-                   scaleFunc diverges as eyeAngle->0, giving ~3.85 for horizontal vs ~0.25 vertical.
-                   The cap limits terrain darkening while keeping realistic haze at the horizon.
-                   lightScale is NOT capped: day/night terminator remains physically correct. */
-                float eyeScale = min(scaleFunc(max(eyeAngle, 0.0)), 2.0 * scaleDepth);
-                float lightScale = scaleFunc(lightAngle);
+                float pointR = length(point);
+                float eyeAngle = dot(-ray, point) / pointR;
+                float lightAngle = dot(lightDirection, point) / pointR;
+                /* Bruneton LUT replaces the divergent O'Neil scaleFunc.
+                   eyeScale is now correctly bounded for all angles (no more foggy mountains at horizon).
+                   lightScale handles the day/night terminator correctly (large for sun below horizon). */
+                float eyeScale = scaleFuncLUT(pointR, eyeAngle);
+                float lightScale = scaleFuncLUT(pointR, lightAngle);
                 float eyeOffset = depth*eyeScale;
                 float temp = (lightScale + eyeScale);
 

@@ -3,6 +3,7 @@ package earth.worldwind.layer.atmosphere
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.Drawable
 import earth.worldwind.geom.Vec3
+import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
@@ -15,6 +16,8 @@ class DrawableSkyAtmosphere : Drawable {
     var globeRadius = 0.0
     var atmosphereAltitude = 0.0
     var program: SkyProgram? = null
+    /** Bruneton precomputed optical-depth LUT; bound to GL_TEXTURE1 during rendering */
+    var transmittanceLUT: Texture? = null
     private var pool: Pool<DrawableSkyAtmosphere>? = null
 
     companion object {
@@ -32,6 +35,7 @@ class DrawableSkyAtmosphere : Drawable {
         program = null
         vertexPoints = null
         triStripElements = null
+        transmittanceLUT = null
         pool?.release(this)
         pool = null
     }
@@ -57,6 +61,10 @@ class DrawableSkyAtmosphere : Drawable {
 
         // Use the draw context's modelview projection matrix.
         program.loadModelviewProjection(dc.modelviewProjection)
+
+        // Bind the Bruneton transmittance LUT to texture unit 1.
+        dc.activeTextureUnit(GL_TEXTURE1)
+        if (transmittanceLUT?.bindTexture(dc) != true) dc.defaultTexture.bindTexture(dc)
 
         // Use the sky's vertex point attribute.
         dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, 0, 0)

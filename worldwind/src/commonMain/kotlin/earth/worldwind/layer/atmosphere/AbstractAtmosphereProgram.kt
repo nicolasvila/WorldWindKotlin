@@ -35,6 +35,7 @@ abstract class AbstractAtmosphereProgram: AbstractShaderProgram() {
     private var gId = KglUniformLocation.NONE
     private var g2Id = KglUniformLocation.NONE
     private var exposureId = KglUniformLocation.NONE
+    private var transmittanceSamplerId = KglUniformLocation.NONE
     private val array = FloatArray(16)
 
     /**
@@ -105,6 +106,8 @@ abstract class AbstractAtmosphereProgram: AbstractShaderProgram() {
         gl.uniform1f(g2Id, (g * g).toFloat())
         exposureId = gl.getUniformLocation(program, "exposure")
         gl.uniform1f(exposureId, exposure.toFloat())
+        transmittanceSamplerId = gl.getUniformLocation(program, "transmittanceSampler")
+        gl.uniform1i(transmittanceSamplerId, 1) // GL_TEXTURE1
     }
 
     fun loadFragMode(fragMode: FragMode) { gl.uniform1i(fragModeId, fragMode.asInt) }

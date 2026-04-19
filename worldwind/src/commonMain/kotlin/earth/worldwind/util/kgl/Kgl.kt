@@ -375,6 +375,21 @@ const val GL_RG = 0x8227
 const val GL_COMPRESSED_RED = 0x8225
 const val GL_COMPRESSED_RG = 0x8226
 
+// OpenGL ES 3.0 / WebGL2 extensions for Bruneton precomputed atmosphere
+const val GL_TEXTURE_3D = 0x806F
+const val GL_TEXTURE_WRAP_R = 0x8072
+const val GL_RGBA16F = 0x881A
+const val GL_RGB16F = 0x881B
+const val GL_RGBA32F = 0x8814
+const val GL_RGB32F = 0x8815
+const val GL_HALF_FLOAT = 0x140B
+const val GL_DRAW_FRAMEBUFFER = 0x8CA9
+const val GL_READ_FRAMEBUFFER = 0x8CA8
+const val GL_MAX_COLOR_ATTACHMENTS = 0x8CDF
+const val GL_UNSIGNED_INT_VEC2 = 0x8DC6
+const val GL_UNSIGNED_INT_VEC3 = 0x8DC7
+const val GL_UNSIGNED_INT_VEC4 = 0x8DC8
+
 interface Kgl {
     abstract val hasMaliOOMBug: Boolean
     
@@ -479,4 +494,12 @@ interface Kgl {
     fun colorMask(r: Boolean, g: Boolean, b: Boolean, a: Boolean)
     fun lineWidth(width: Float)
     fun pixelStorei(pname: Int, param: Int)
+
+    // OpenGL ES 3.0 / WebGL2 methods for Bruneton precomputed atmosphere
+    fun texImage2DFloat(target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: FloatArray?) {}
+    fun texImage3D(target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int, border: Int, format: Int, type: Int) {}
+    fun framebufferTextureLayer(target: Int, attachment: Int, texture: KglTexture, level: Int, layer: Int) {}
+    fun drawBuffers(count: Int, buffers: IntArray) {}
+    fun blendFuncSeparate(srcRGB: Int, dstRGB: Int, srcAlpha: Int, dstAlpha: Int) = blendFunc(srcRGB, dstRGB)
+    fun blendEquationSeparate(modeRGB: Int, modeAlpha: Int) {}
 }

@@ -26,6 +26,13 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     protected val activeLightDirection = Vec3()
     private val fullSphereSector = Sector().setFullSphere()
 
+    /**
+     * Bruneton precomputed transmittance LUT.
+     * Computed lazily on first render with actual globe/atmosphere parameters.
+     * Shared between sky and ground drawables.
+     */
+    private var transmittanceLUT: TransmittanceLUT? = null
+
     companion object {
         private val VERTEX_POINTS_KEY = AtmosphereLayer::class.simpleName + ".points"
         private val TRI_STRIP_ELEMENTS_KEY = AtmosphereLayer::class.simpleName + ".triStripElements"
@@ -37,11 +44,21 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         // Compute the currently active light direction.
         determineLightDirection(rc)
 
+        // Ensure the Bruneton transmittance LUT is created with current globe/atmosphere parameters.
+        ensureTransmittanceLUT(rc)
+
         // Render the sky portion of the atmosphere.
         renderSky(rc)
 
         // Render the ground portion of the atmosphere.
         renderGround(rc)
+    }
+
+    private fun ensureTransmittanceLUT(rc: RenderContext) {
+        val lut = transmittanceLUT ?: TransmittanceLUT().also { transmittanceLUT = it }
+        lut.globeRadius = rc.globe.equatorialRadius
+        lut.atmosphereRadius = rc.globe.equatorialRadius + rc.atmosphereAltitude
+        lut.scaleDepth = 0.25 // must match AbstractAtmosphereProgram's rayleighScaleDepth
     }
 
     protected open fun determineLightDirection(rc: RenderContext) {
