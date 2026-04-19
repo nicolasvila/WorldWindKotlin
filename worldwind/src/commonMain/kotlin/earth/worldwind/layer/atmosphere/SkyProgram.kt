@@ -48,6 +48,11 @@ class SkyProgram : AbstractAtmosphereProgram() {
                 return texture2D(transmittanceSampler, vec2(u, v)).r * 8.0;
             }
 
+            float scaleFunc(float cos) {
+                float x = 1.0 - cos;
+                return scaleDepth * exp(-0.00287 + x*(0.459 + x*(3.83 + x*(-6.80 + x*5.25))));
+            }
+
             void main() {
                 /* Get the ray from the camera to the vertex and its length (which is the far point of the ray passing through the
                 atmosphere) */
@@ -96,10 +101,8 @@ class SkyProgram : AbstractAtmosphereProgram() {
                     float depth = exp(scaleOverScaleDepth * (globeRadius - height));
                     float lightAngle = dot(lightDirection, samplePoint) / height;
                     float cameraAngle = dot(ray, samplePoint) / height;
-                    /* Use LUT for both angles: lightAngle for terminator, cameraAngle for sky.
-                       The LUT is bounded for all angles, preventing the white-horizon explosion
-                       caused by scaleFunc diverging when cameraAngle goes negative (far side limb). */
-                    float scatter = (startOffset + depth*(scaleFuncLUT(height, lightAngle) - scaleFuncLUT(height, cameraAngle)));
+                    /* scaleFunc for light (terminator/night), LUT for camera (white-horizon fix). */
+                    float scatter = (startOffset + depth*(scaleFunc(lightAngle) - scaleFuncLUT(height, cameraAngle)));
                     vec3 attenuate = exp(-scatter * (invWavelength * Kr4PI + Km4PI));
                     frontColor += attenuate * (depth * scaledLength);
                     samplePoint += sampleRay;

@@ -47,12 +47,20 @@ class GroundProgram: AbstractAtmosphereProgram() {
             varying vec2 texCoord;
 
             /* Look up numerically-accurate optical depth from the precomputed LUT.
-               Replaces the O'Neil scaleFunc polynomial which diverges near mu=0.
-               Returns the same quantity (normalized optical depth toward direction mu from altitude r). */
+               Used ONLY for eyeAngle (viewer direction) to prevent divergence for
+               near-horizontal rays that cause foggy/dark mountains at horizon.
+               lightAngle still uses the original scaleFunc polynomial to preserve
+               the day/night terminator: its divergence for negative angles (sun
+               below horizon) is the mechanism that creates proper night-side darkness. */
             float scaleFuncLUT(float r, float mu) {
                 float u = clamp((mu + 1.0) * 0.5, 0.0, 1.0);
                 float v = clamp((r - globeRadius) / (atmosphereRadius - globeRadius), 0.0, 1.0);
                 return texture2D(transmittanceSampler, vec2(u, v)).r * 8.0;
+            }
+
+            float scaleFunc(float cos) {
+                float x = 1.0 - cos;
+                return scaleDepth * exp(-0.00287 + x*(0.459 + x*(3.83 + x*(-6.80 + x*5.25))));
             }
 
             void main() {
@@ -83,11 +91,10 @@ class GroundProgram: AbstractAtmosphereProgram() {
                 float pointR = length(point);
                 float eyeAngle = dot(-ray, point) / pointR;
                 float lightAngle = dot(lightDirection, point) / pointR;
-                /* Bruneton LUT replaces the divergent O'Neil scaleFunc.
-                   eyeScale is now correctly bounded for all angles (no more foggy mountains at horizon).
-                   lightScale handles the day/night terminator correctly (large for sun below horizon). */
+                /* LUT for eye direction (fixes foggy mountains), original polynomial for light
+                   direction (preserves day/night terminator and night-side darkness). */
                 float eyeScale = scaleFuncLUT(pointR, eyeAngle);
-                float lightScale = scaleFuncLUT(pointR, lightAngle);
+                float lightScale = scaleFunc(lightAngle);
                 float eyeOffset = depth*eyeScale;
                 float temp = (lightScale + eyeScale);
 
