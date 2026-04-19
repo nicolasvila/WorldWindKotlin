@@ -58,7 +58,7 @@ class ViewControlsLayer(
         val baseY = 11.0 * d
         var x = 11.0 * d
 
-        if (showPanControl) {
+        if (showPanControl && !rc.globe.is2D) {
             place(panControl, x, baseY, s * 2, s * 2, rc)
             panCenterX = x + s
             panCenterY = baseY + s
@@ -86,7 +86,7 @@ class ViewControlsLayer(
             controlBounds += Bounds(x, baseY + s, s, s, Action.TILT_UP)
             x += s
         }
-        if (showExaggerationControl) {
+        if (showExaggerationControl && !rc.globe.is2D) {
             place(exaggerationDownControl, x, baseY, s, s, rc)
             place(exaggerationUpControl, x, baseY + s, s, s, rc)
             controlBounds += Bounds(x, baseY, s, s, Action.EXAGGERATION_DOWN)
