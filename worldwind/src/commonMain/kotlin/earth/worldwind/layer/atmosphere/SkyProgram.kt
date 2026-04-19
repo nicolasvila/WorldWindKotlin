@@ -121,12 +121,8 @@ class SkyProgram : AbstractAtmosphereProgram() {
             void main () {
                 float cos = dot(lightDirection, direction) / length(direction);
                 float miePhase = 1.5 * ((1.0 - g2) / (2.0 + g2)) * (1.0 + cos*cos) / pow(1.0 + g2 - 2.0*g*cos, 1.5);
-                vec3 hdrColor = primaryColor + secondaryColor * miePhase;
-                /* Exposure-based HDR tone mapping: physically correct, preserves blue hue.
-                   Replaces the previous "color * color.b" which incorrectly darkened the sky
-                   when the blue channel was low (e.g. looking away from the sun). */
-                vec3 color = 1.0 - exp(-exposure * hdrColor);
-                gl_FragColor = vec4(color, color.b);
+                vec3 color = primaryColor + secondaryColor * miePhase;
+                gl_FragColor = vec4(color * color.b, color.b);
             }
         """.trimIndent()
     )
