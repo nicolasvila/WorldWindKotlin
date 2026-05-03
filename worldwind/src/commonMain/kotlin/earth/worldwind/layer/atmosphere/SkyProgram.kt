@@ -122,7 +122,7 @@ class SkyProgram : AbstractAtmosphereProgram() {
                 float cos = dot(lightDirection, direction) / length(direction);
                 float miePhase = 1.5 * ((1.0 - g2) / (2.0 + g2)) * (1.0 + cos*cos) / pow(1.0 + g2 - 2.0*g*cos, 1.5);
                 vec3 color = primaryColor + secondaryColor * miePhase;
-                gl_FragColor = vec4(color * color.b, color.b);
+                gl_FragColor = vec4(1.0 - exp(-exposure * color), color.b);
             }
         """.trimIndent()
     )

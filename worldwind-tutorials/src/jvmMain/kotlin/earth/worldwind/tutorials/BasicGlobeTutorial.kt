@@ -14,6 +14,16 @@ fun main() {
     SwingUtilities.invokeLater {
         val worldWindow = WorldWindow { engine ->
             engine.globe.elevationModel.addCoverage(BasicElevationCoverage())
+
+            // Subclass AtmosphereLayer to disable the ground darkening (day/night effect).
+            // Setting time = null only moves the "sun" to the camera position, it does NOT
+            // disable the atmospheric scattering that darkens the night side of the globe.
+            val atmosphereLayerWithoutNight = object : AtmosphereLayer() {
+                override fun renderGround(rc: earth.worldwind.render.RenderContext) {
+                    // Intentionally skip ground atmosphere rendering to avoid day/night darkening
+                }
+            }
+
             with(engine.layers) {
                 addLayer(BackgroundLayer())
                 addLayer(
@@ -25,6 +35,7 @@ fun main() {
                 )
                 addLayer(StarFieldLayer())
                 addLayer(AtmosphereLayer())
+
             }
 
             BasicTutorial(engine).start()

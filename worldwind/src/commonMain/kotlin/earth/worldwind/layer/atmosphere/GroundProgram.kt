@@ -39,7 +39,6 @@ class GroundProgram: AbstractAtmosphereProgram() {
 
             varying vec3 primaryColor;
             varying vec3 secondaryColor;
-            varying vec3 direction;
             varying vec2 texCoord;
 
             float scaleFunc(float cos) {
@@ -97,7 +96,11 @@ class GroundProgram: AbstractAtmosphereProgram() {
                 {
                     float height = length(samplePoint);
                     float depth = exp(scaleOverScaleDepth * (globeRadius - height));
-                    float scatter = depth*temp - eyeOffset;
+                    /* Clamp scatter to >= 0: optical depth cannot be negative. A negative value
+                       would cause exp(-scatter) to blow up, producing explosive brightness
+                       artefacts on terrain at grazing angles. Clamping here is more principled
+                       than capping eyeScale upstream and leaves scaleFunc untouched. */
+                    float scatter = max(0.0, depth*temp - eyeOffset);
                     attenuate = exp(-scatter * (invWavelength * Kr4PI + Km4PI));
                     frontColor += attenuate * (depth * scaledLength);
                     samplePoint += sampleRay;
